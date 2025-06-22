@@ -1,0 +1,6 @@
+projectKey=Zyntro
+serverUrl=http://localhost:9000
+serverVersion=25.6.0.109173
+dashboardUrl=http://localhost:9000/dashboard?id=Zyntro
+ceTaskId=3b4df948-acfa-4c69-a34e-b1441983ba66
+ceTaskUrl=http://localhost:9000/api/ce/task?id=3b4df948-acfa-4c69-a34e-b1441983ba66

@@ -1,158 +1,80 @@
-import React from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Image, SafeAreaView } from 'react-native';
-import { Ionicons, Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+// components/chat/ChatScreen.tsx
+import React, { useRef, useEffect } from "react";
+import {
+  SafeAreaView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
+  ActivityIndicator,
+} from "react-native";
+import { useAuth } from "@/providers/auth-provider";
+import { useProject } from "@/providers/project-provider";
+import { useCollection } from "react-firebase-hooks/firestore";
+import { collection, query, where, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import ChatInput from "@/components/Chat/ChatInput";
+import MessageCard from "@/components/Chat/MessageCard";
+import { ChatMessage } from "@/lib/types";
 
-// Interface for our chat item
-interface ChatItem {
-  id: string;
-  name: string;
-  message: string;
-  avatar: any;
-}
+const ChatScreen = () => {
+  const { user } = useAuth();
+  const { activeProject } = useProject();
+  const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
-export default function ChatScreen() {
-  // Sample chat data
-  const chatData: ChatItem[] = Array(9).fill(null).map((_, index) => ({
-    id: index.toString(),
-    name: 'Kashan Akram',
-    message: 'How is the project going?',
-    avatar: require('../../assets/images/avatar-placeholder.png')
-  }));
+  const messagesQuery = activeProject?._id
+    ? query(
+        collection(db, "messages"),
+        where("projectId", "==", activeProject._id),
+        orderBy("timestamp", "asc")
+      )
+    : null;
 
-  // Render chat item
-  const renderChatItem = ({ item }: { item: ChatItem }) => (
-    <TouchableOpacity style={styles.chatItem}>
-      <Image source={item.avatar} style={styles.avatar} />
-      <View style={styles.chatContent}>
-        <Text style={styles.chatName}>{item.name}</Text>
-        <Text style={styles.chatMessage}>{item.message}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const [messages, messagesLoading] = useCollection(messagesQuery);
+
+  const messagesDocs: ChatMessage[] =
+    messages?.docs.map((doc) => {
+      return {
+        ...doc.data(),
+        _id: doc.id,
+      } as ChatMessage;
+    }) || [];
+
+  useEffect(() => {
+    if (messagesDocs.length > 0) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [messagesDocs.length]);
+
+  if (!user?._id || !activeProject?._id || messagesLoading)
+    return <ActivityIndicator size="large" />;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search Messages"
-          placeholderTextColor="#999"
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={80}
+    >
+      <SafeAreaView style={styles.listContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={messagesDocs}
+          renderItem={({ item }) => (
+            <MessageCard message={item} currentUserId={user?._id} />
+          )}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.messagesContainer}
         />
-      </View>
-
-      {/* Schedule Meeting Button */}
-      <TouchableOpacity style={styles.scheduleButton}>
-        <Text style={styles.scheduleButtonText}>Schedule Meeting</Text>
-      </TouchableOpacity>
-
-      {/* Chat List */}
-      <FlatList
-        data={chatData}
-        renderItem={renderChatItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.chatList}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+      <ChatInput />
+    </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-    paddingTop: 72,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F2F5',
-    borderRadius: 8,
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    marginHorizontal: 16,
-    height: 40,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    color: '#333',
-    fontSize: 16,
-  },
-  scheduleButton: {
-    backgroundColor: '#120C91',
-    borderRadius: 8,
-    paddingVertical: 14,
-    marginHorizontal: 16,
-    marginVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scheduleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  chatList: {
-    paddingHorizontal: 16,
-  },
-  chatItem: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e1e1e1',
-  },
-  chatContent: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
-  },
-  chatMessage: {
-    fontSize: 14,
-    color: '#888',
-  },
-  bottomNavigation: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    paddingBottom: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EAEAEA',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  activeNavItem: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#120C91',
-  },
-  navText: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
-  },
-  activeNavText: {
-    color: '#120C91',
-  },
+  container: { flex: 1, backgroundColor: "#F5F6FA" },
+  listContainer: { flex: 1 },
+  messagesContainer: { padding: 16, paddingBottom: 80 },
 });
+
+export default ChatScreen;
